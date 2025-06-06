@@ -1,0 +1,150 @@
+#include "NWengineCore.h"
+
+
+struct UiItems {
+    UIItem* load;
+    UIItem* reload;
+    UIItem* slider;
+    UIItem* slider2;
+    UIItem* slider3;
+};
+UiItems uiItems;
+Camera* camC;
+
+void SetWin(UIWindow* win) {
+	Camera*	   cam	= Camera::ActiveCamera;
+	Transform* tr	= win->attachedObject->Get<Transform>();
+	UIWindow*  uwin = win->attachedObject->Get<UIWindow>();
+	v2f		   s;
+	s = cam->GetSize();
+	s.x *= 0.15;
+	uwin->SetTitle("");
+	uwin->SetSize(s);
+	uwin->SetPosition({-cam->GetSize().x * 0.5f + s.x * 0.5f, 0.0});
+	uwin->prop &= ~Window_Prop_ResizableXL;
+	uwin->prop &= ~Window_Prop_ResizableYU;
+	uwin->prop &= ~Window_Prop_Movable;
+
+    UIItemLabel* lab = uwin->AddItem(UIItemType_Label, -1, 0);
+    UISetLabel(lab, "Load: ");
+    uiItems.load = uwin->AddItem(UIItemType_Checkbox, -1,1);
+    lab = uwin->AddItem(UIItemType_Label, -1, 0);
+    UISetLabel(lab, "Reload: ");
+    uiItems.reload = uwin->AddItem(UIItemType_Checkbox, -1,1);
+    lab = uwin->AddItem(UIItemType_Label, -1, 1);
+    UISetLabel(lab, "Density: ");
+    uiItems.slider = uwin->AddItem(UIItemType_Slider,-1,1);
+    UIGetSliderData(uiItems.slider)->maxx = 10.0;
+    UIGetSliderData(uiItems.slider)->minn = 0.0;
+    UIGetSliderData(uiItems.slider)->curPercent = 0.5;
+
+    lab = uwin->AddItem(UIItemType_Label, -1, 1);
+    UISetLabel(lab, "Power: ");
+    uiItems.slider2 = uwin->AddItem(UIItemType_Slider,-1,1);
+    UIGetSliderData(uiItems.slider2)->maxx = 10.0;
+    UIGetSliderData(uiItems.slider2)->minn = 0.0;
+    UIGetSliderData(uiItems.slider2)->curPercent = 0.1;
+
+    lab = uwin->AddItem(UIItemType_Label, -1, 1);
+    UISetLabel(lab, "Light Pos: ");
+    uiItems.slider3 = uwin->AddItem(UIItemType_Slider,-1,1);
+    UIGetSliderData(uiItems.slider3)->maxx =  10.0;
+    UIGetSliderData(uiItems.slider3)->minn = -10.0;
+    UIGetSliderData(uiItems.slider3)->curPercent = 1.0;
+}
+
+static void Init() {
+	Context::SetTitle("Sandbox");
+	Context::EnableVSync();
+	Scene& s = Scene::CreateNew("New Scene");
+	s.MakeCurrent();
+	GameObject& cam		  = s.AddObject("camobj");
+	GameObject& uwin	  = s.AddObject("uiobj");
+    GameObject& rndQuad   = s.AddObject("rndobj");
+    UIWindow& w = uwin.Add<UIWindow>();
+	camC				  = cam.AddComponent<Camera>();
+	camC->Use();
+	camC->SetClearColor(fVec4(0.2, 0.0, 1.0, 1.0));
+	camC->ChangeOrthoWithMSAA(900, 500, MSAAValue::NW_MSx8);
+	camC->GetFbo()->GenDepthStencilBuffer();
+    SetWin(&w);
+    Sprite& spr = rndQuad.Add<Sprite,Transform>();
+    spr.SetSize({900,500});
+
+	s.Start();
+    UIColorScheme colorScheme = uiColorSchemePreset_Test;
+    colorScheme.winRest = v4f(0.0,0.0,1.0,0.0);
+    currentUIColorScheme = colorScheme;
+	Renderer::currentRenderer->SetStretch({1.0, 1.0});
+}
+
+static float elapsed = 0.0;
+static ShaderIdentifier usedShader = ShaderTexturedDefaultID;
+
+#define UpdateIfExists(sh,name,code) if (sh->GetUniformLoc(name) != -1) {code;}
+static void UpdateUniforms() {
+    Shader* sh = Scene::currentScene->GetGameObject("rndobj")->Get<Sprite>()->GetShader();
+    sh->Use();
+    UpdateIfExists(sh,"uRes",sh->SetUniform2f("uRes", Camera::ActiveCamera->size));
+    UpdateIfExists(sh,"uTime",sh->SetUniform1f("uTime", elapsed));
+    UpdateIfExists(sh,"uPerc",sh->SetUniform1f("uPerc", UIGetSliderValue(uiItems.slider)));
+    UpdateIfExists(sh,"uPow",sh->SetUniform1f("uPow", UIGetSliderValue(uiItems.slider2)));
+    UpdateIfExists(sh,"uLpos",sh->SetUniform1f("uLpos", UIGetSliderValue(uiItems.slider3)));
+}
+#undef UpdateIfExists
+
+static void Update() { 
+    CheckboxData* d = UIGetCheckboxData(uiItems.reload);
+    if (d->value || Inputs::GetInputOnKeyRelease('R')) {
+        system("cls");
+        Sprite* spr = Scene::currentScene->GetGameObject("rndobj")->Get<Sprite>();
+        Shader* sh  = spr->shader;
+        if (usedShader != ShaderTexturedDefaultID) {
+            Shader::resList[usedShader].Clean();
+            Shader* newsh = Loader<Shader>().LoadFromFile(usedShader.c_str(), &usedShader);
+            if (newsh->_glID)
+                spr->SetShader(newsh);
+            else
+                spr->SetShader(ShaderTexturedDefaultID);
+        }
+        d->value = 0;
+        elapsed = 0.0;
+    }
+    d = UIGetCheckboxData(uiItems.load);
+    if (d->value) {
+        system("cls");
+        Sprite* spr = Scene::currentScene->GetGameObject("rndobj")->Get<Sprite>();
+        Shader* sh  = &Shader::resList[usedShader];
+        std::string str = GetFile("Shader\0*.shader\0*.glsl\0*.frag");
+        if (str.size() > 0) {
+            if (sh->_identifier != ShaderTexturedDefaultID)
+                sh->Clean();
+            Shader* newsh = Loader<Shader>().LoadFromFile(str.c_str(), &str);
+            if (newsh->_glID != 0)
+                spr->SetShader(newsh);
+            else 
+                spr->SetShader(ShaderTexturedDefaultID);
+            Scene::currentScene->GetFirstObjectWithComponent(UIWindowID)->Get<UIWindow>()->SetTitle(str.c_str());
+            usedShader = str;
+        }
+            d->value = 0;
+    }
+    UpdateUniforms();
+    elapsed += NWTime::GetDeltaTime();
+}
+
+static void Render() {
+	(*Renderer::currentRenderer)(true);
+}
+
+int main() {
+	Context::WINDOW_WIDTH  = 900;
+	Context::WINDOW_HEIGHT = 500;
+	NWenginePushFunction(ON_MAIN_CALL_LOCATION::InitEnd, Init);
+	NWenginePushFunction(ON_MAIN_CALL_LOCATION::FrameIntermediate, Render);
+	NWenginePushFunction(ON_MAIN_CALL_LOCATION::FrameIntermediate, Update);
+	NWengineInit();
+	NWengineLoop();
+	NWengineShutdown();
+}
+
