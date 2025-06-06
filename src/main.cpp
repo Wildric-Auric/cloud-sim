@@ -7,6 +7,8 @@ struct UiItems {
     UIItem* slider;
     UIItem* slider2;
     UIItem* slider3;
+
+    UIItem* lab0;
 };
 UiItems uiItems;
 Camera* camC;
@@ -51,6 +53,8 @@ void SetWin(UIWindow* win) {
     UIGetSliderData(uiItems.slider3)->maxx =  10.0;
     UIGetSliderData(uiItems.slider3)->minn = -10.0;
     UIGetSliderData(uiItems.slider3)->curPercent = 1.0;
+
+    uiItems.lab0 = uwin->AddItem(UIItemType_Label, -1, 1);
 }
 
 static void Init() {
@@ -130,6 +134,7 @@ static void Update() {
             d->value = 0;
     }
     UpdateUniforms();
+    UISetLabel(uiItems.lab0, std::to_string(UIGetSliderValue(uiItems.slider3)).c_str());
     elapsed += NWTime::GetDeltaTime();
 }
 

@@ -104,7 +104,99 @@ struct Hit {
     float op;
     vec3 p;
 };
+
 float eps;
+
+vec3 lp = vec3(0.0,3.0,10.0);
+vec4 sph = vec4(0.0,0.0,uLpos,1.0);
+
+float sdf0(vec3 p, float rad) {
+    return length(p) - rad;
+}
+
+float sdftor( vec3 p, vec2 t ) {
+  vec2 q = vec2(length(p.xz)-t.x,p.y);
+  return length(q)-t.y;
+}
+
+
+int cldfxmrc2(inout Ray ray,inout Hit hit) {
+    vec3 n = normalize(hit.p - sph.xyz); //todo::don't recalculate
+    float ld; //= max(0.0,dot(n,normalize(lp-p)));
+    vec3 lightc = vec3(ld) + 0.05;
+    vec3 op;
+    float l  = 0.0;
+    float d  = -1.0;
+    float st = 0.005;
+    float acc = 0.0;
+    int i = 0;
+    for (i = 0; i < 1;++i) {
+        if (d > 0.0001) break;
+        l += st;
+        op = hit.p + ray.dir * l; 
+        ld = max(0.0,dot(n,normalize(lp-op)));
+        acc += max((pow(simplex3d_fractal(op*5.0+vec3(0.,uTime,uTime)),uPow)),0.0) ;
+        d = sdf0(op - sph.xyz, sph.w); 
+    }
+    hit.c *=  vec3(clamp(exp(-acc*uPerc),0.0,1.0));
+    ray.t += l+2.0*eps+2.0*sph.w;
+    return 1;
+}
+
+int cldfxmrc(inout Ray ray,inout Hit hit) {
+    vec3 n = normalize(hit.p - sph.xyz); //todo::don't recalculate
+    float ld; //= max(0.0,dot(n,normalize(lp-p)));
+    vec3 lightc = vec3(ld) + 0.05;
+    vec3 op;
+    float l  = 0.0;
+    float d  = -1.0;
+    float st = 0.005;
+    float acc = 0.0;
+    int i = 0;
+    for (i = 0; i < 100;++i) {
+        if (d > 0.0001) break;
+        l += st;
+        op = hit.p + ray.dir * l; 
+        ld = max(0.0,dot(n,normalize(lp-op)));
+        Hit lh;
+        Ray lr;
+        lr.origin = op;
+        lr.dir    = normalize(lp - op);
+        lr.t      = 0.0;
+        lh.c = vec3(1.0);
+        //cldfxmrc2(lr,lh);
+        acc += max((pow(simplex3d_fractal(op*5.0+vec3(0.,uTime,uTime)),uPow)),0.0)*abs(dot(lr.dir,n));
+        d = sdf0(op - sph.xyz, sph.w); 
+    }
+    hit.c *=  vec3(clamp(exp(-acc*uPerc),0.0,1.0));
+    ray.t += l+2.0*eps+2.0*sph.w;
+    return 1;
+}
+
+void raymarch(inout Cam cam, inout Ray ray, inout Hit hit) {
+    float d;
+    vec3 p;
+    int j = 0;
+    for (int i = 0; i < 64; ++i) {
+        p = ray.origin + ray.t * ray.dir;      
+        vec3 n = normalize(p - sph.xyz); 
+        vec2 suv;
+        #define PI 3.1415
+        suv.x =  atan(n.x, - n.z) / (PI*2.0) + 0.5;
+        suv.y =  0.5 + asin(n.y)/PI;
+        //float off = simplex3d_fractal(vec3(vec2(suv)*20.0,0.0));
+        //sph.w += off*0.03;
+        d = sdf0((p - sph.xyz), sph.w); 
+        if (d <= eps) { 
+            hit.p = p;
+            cldfxmrc(ray,hit);
+            //hit.c = vec3(d);
+        }
+        if (length(p) > 1000.0) { break;}
+        ray.t += d;
+    }
+}
+
 void main() {
     vec2 uv = (coord*uRes)/uRes.xx - vec2(0.5, 0.5*uRes.y/uRes.x);
     eps = 1.0 / uRes.x * 0.1;
@@ -116,50 +208,7 @@ void main() {
     ray.origin = vec3(0.0);
     ray.t      = 0.0;
     ray.dir    = normalize(vec3(uv.x, uv.y, -1.0));
-    float d;
-    vec3 p;
-    vec3 lp = vec3(uLpos,3.0,10.0);
-    vec4 sph = vec4(0.0,0.0,-5.0,1.0);
-    for (int i = 0; i < 256; ++i) {
-        p = ray.origin + ray.t * ray.dir;      
-        vec3 n = normalize(p - sph.xyz); 
-        vec2 suv;
-        #define PI 3.1415
-        suv.x =  atan(n.x, - n.z) / (PI*2.0) + 0.5;
-        suv.y =  0.5 + asin(n.y)/PI;
-        float off = simplex3d_fractal(vec3(vec2(suv)*20.0,0.0));
-        sph.w += off*0.03;
-        d = distance(p, sph.xyz) - sph.w; 
-        if (d <= eps) { 
-            hit.p = p;
-            float ld = max(0.0,dot(n,normalize(lp-p)));
-            vec3 lightc = vec3(ld) + 0.05;
-            //hit.c = lightc;
-            float l = 0.0;
-            vec3 op;
-            d = -1.0;
-            float st = 0.005;
-            //hit.c *= 0.0;
-            float acc = 0.0;
-            while (d < 0.0) {
-                l += st;
-                op = p + ray.dir * l; 
-                ld = max(0.0,dot(n,normalize(lp-op)));
-                acc += max((st * pow(simplex3d_fractal(op*5.0+vec3(0.,uTime,uTime)),uPow)),0.0) * ld;
-                //acc += ld;
-                d = distance(op, sph.xyz) - sph.w; 
-            }
-            if (l > st) {
-                //l = l + st - (distance(p, sph.xyz) - sph.w); 
-                hit.c *=  vec3(clamp(exp(-acc*uPerc),0.0,1.0));
-            }
-            break; 
-        }
-        if (length(p) > 1000.0) {
-            break;
-        }
-        ray.t += d;
-    }
-    col = hit.c;
-	FragColor = vec4(col, 1.);
+    raymarch(cam, ray, hit);
+    //float ns = pow(simplex3d_fractal(vec3(uv.xy, 0.0)*10.0+vec3(0.,uTime,uTime)),uPow))
+	FragColor = vec4(hit.c, 1.);
 }
