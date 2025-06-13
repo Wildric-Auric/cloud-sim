@@ -12,6 +12,8 @@ struct UiItems {
 };
 UiItems uiItems;
 Camera* camC;
+Texture3D      cubetex;
+ComputeShader* compute;
 
 void SetWin(UIWindow* win) {
 	Camera*	   cam	= Camera::ActiveCamera;
@@ -80,6 +82,19 @@ static void Init() {
     colorScheme.winRest = v4f(0.0,0.0,1.0,0.0);
     currentUIColorScheme = colorScheme;
 	Renderer::currentRenderer->SetStretch({1.0, 1.0});
+
+       cubetex._size = v3i(128,128,128);
+    cubetex._GPUGen(0, TexChannelInfo::NW_RGBA);
+    cubetex.SetEdgesBehaviour(TexEdge::NW_REPEAT);
+	ComputeShaderIdentifier id = "C:/Programming/NWengineProjs/Cloud-sim/cloud-sim/assets/Noise.comp.shader";
+	Loader<ComputeShader>	shaderl;
+	compute = shaderl.LoadFromFileOrGetFromCache((void*)&id, id.c_str(), 0);
+
+    compute->Use();
+    cubetex.Bind(16);
+    cubetex.BindImageTex(0);
+    compute->Dispatch({128,128,128});
+    Context::NWMemoryBarrier(NWMemoryBarrierBit::SHADER_IMAGE_ACCESS_BARRIER_BIT);
 }
 
 static float elapsed = 0.0;
@@ -94,6 +109,8 @@ static void UpdateUniforms() {
     UpdateIfExists(sh,"uPerc",sh->SetUniform1f("uPerc", UIGetSliderValue(uiItems.slider)));
     UpdateIfExists(sh,"uPow",sh->SetUniform1f("uPow", UIGetSliderValue(uiItems.slider2)));
     UpdateIfExists(sh,"uLpos",sh->SetUniform1f("uLpos", UIGetSliderValue(uiItems.slider3)));
+    UpdateIfExists(sh,"uTex1",sh->SetUniform1i("uTex1",16));
+    cubetex.Bind(16);
 }
 #undef UpdateIfExists
 
@@ -143,6 +160,8 @@ static void Render() {
 }
 
 int main() {
+    Context::_glInfo.maxVersion = 4;
+    Context::_glInfo.minVersion = 5;
 	Context::WINDOW_WIDTH  = 900;
 	Context::WINDOW_HEIGHT = 500;
 	NWenginePushFunction(ON_MAIN_CALL_LOCATION::InitEnd, Init);
