@@ -24,7 +24,7 @@ uniform sampler3D uTex1;
 
 //--------------------------------------
 float no3(vec3 p) {
-    return texture(uTex1, p).x;
+    return max(0.0,texture(uTex1, p).x);
 }
 //-------------------------------
 
@@ -33,6 +33,7 @@ uniform vec2	  uRes;
 uniform float     uPow  = 1.0;
 uniform float     uPerc = 1.0;
 uniform float     uLpos = 3.0;
+uniform float     uCpos = 3.0;
 in vec2			  coord;
 
 out vec4 FragColor;
@@ -53,8 +54,8 @@ struct Hit {
 
 float eps;
 
-vec3 lp = vec3(0.0,3.0,10.0);
-vec4 sph = vec4(0.0,0.0,uLpos,1.0);
+vec3 lp = vec3(uLpos,3.0,10.0);
+vec4 sph = vec4(0.0,0.0,uCpos,1.0);
 
 float sdf0(vec3 p, float rad) {
     return length(p) - rad;
@@ -63,30 +64,6 @@ float sdf0(vec3 p, float rad) {
 float sdftor( vec3 p, vec2 t ) {
   vec2 q = vec2(length(p.xz)-t.x,p.y);
   return length(q)-t.y;
-}
-
-
-int cldfxmrc2(inout Ray ray,inout Hit hit) {
-    vec3 n = normalize(hit.p - sph.xyz); //todo::don't recalculate
-    float ld; //= max(0.0,dot(n,normalize(lp-p)));
-    vec3 lightc = vec3(ld) + 0.05;
-    vec3 op;
-    float l  = 0.0;
-    float d  = -1.0;
-    float st = 0.005;
-    float acc = 0.0;
-    int i = 0;
-    for (i = 0; i < 1;++i) {
-        if (d > 0.0001) break;
-        l += st;
-        op = hit.p + ray.dir * l; 
-        ld = max(0.0,dot(n,normalize(lp-op)));
-        //acc += max((pow(simplex3d_fractal(op*5.0+vec3(0.,uTime,uTime)),uPow)),0.0) ;
-        d = sdf0(op - sph.xyz, sph.w); 
-    }
-    hit.c *=  vec3(clamp(exp(-acc*uPerc),0.0,1.0));
-    ray.t += l+2.0*eps+2.0*sph.w;
-    return 1;
 }
 
 int cldfxmrc(inout Ray ray,inout Hit hit) {
@@ -111,11 +88,18 @@ int cldfxmrc(inout Ray ray,inout Hit hit) {
         lr.t      = 0.0;
         lh.c = vec3(1.0);
         //cldfxmrc2(lr,lh);
-        float no = no3((op*5.0)*0.1);//simplex3d_fractal(op*5.0+vec3(0.,uTime,uTime));
-        acc += max((pow(no,uPow)),0.0)*abs(dot(lr.dir,n));
+        vec3 co = (sph.xyz + vec3(-sph.w, -sph.w, sph.w));
+        co = 0.5 * (op - co) / sph.w;
+        co.z = -co.z;
+        float no = no3(co + vec3(0.0,uTime*0.1,0.0));
+        float v  = pow(no,uPow);
+        //v *= abs(dot(lr.dir,n));
+        acc += max(v,0.0);
         d = sdf0(op - sph.xyz, sph.w); 
     }
-    hit.c *=  vec3(clamp(exp(-acc*uPerc),0.0,1.0));
+    float v = exp(-acc*uPerc);
+    v = clamp(v,0.0,1.0);
+    hit.c = mix(vec3(1.0), hit.c,v);
     ray.t += l+2.0*eps+2.0*sph.w;
     return 1;
 }
@@ -156,6 +140,7 @@ void main() {
     ray.t      = 0.0;
     ray.dir    = normalize(vec3(uv.x, uv.y, -1.0));
     raymarch(cam, ray, hit);
-    //float ns = pow(simplex3d_fractal(vec3(uv.xy, 0.0)*10.0+vec3(0.,uTime,uTime)),uPow))
-	FragColor = vec4(hit.c, 1.);
+    col = hit.c;
+    //col = vec3(no3(vec3(uv, 0.0)));
+	FragColor = vec4(col, 1.);
 }

@@ -69,8 +69,8 @@ void main() {
 	//int idx		 = int(gl_GlobalInvocationID.y * 16 + gl_GlobalInvocationID.x);
 	vec4  value		 = vec4(0.0, 0.0, 0.0, 1.0);
 	ivec3 tc = ivec3(gl_GlobalInvocationID.xyz);
-    vec3 uv  = vec3(tc) / 128.0;
+    vec3 uv  = vec3(tc) / 255.0;
     float v  = simplex3d_fractal (uv * 5.0);
-    value.xyz =vec3 (v) ;
+    value.xyz =vec3(v) ;
 	imageStore(imgOutput, tc, value);
 }

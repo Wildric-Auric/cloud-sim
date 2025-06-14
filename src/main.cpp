@@ -7,8 +7,10 @@ struct UiItems {
     UIItem* slider;
     UIItem* slider2;
     UIItem* slider3;
+    UIItem* slider4;
 
     UIItem* lab0;
+    UIItem* labfps;
 };
 UiItems uiItems;
 Camera* camC;
@@ -38,7 +40,7 @@ void SetWin(UIWindow* win) {
     lab = uwin->AddItem(UIItemType_Label, -1, 1);
     UISetLabel(lab, "Density: ");
     uiItems.slider = uwin->AddItem(UIItemType_Slider,-1,1);
-    UIGetSliderData(uiItems.slider)->maxx = 10.0;
+    UIGetSliderData(uiItems.slider)->maxx = 3.0;
     UIGetSliderData(uiItems.slider)->minn = 0.0;
     UIGetSliderData(uiItems.slider)->curPercent = 0.5;
 
@@ -47,7 +49,7 @@ void SetWin(UIWindow* win) {
     uiItems.slider2 = uwin->AddItem(UIItemType_Slider,-1,1);
     UIGetSliderData(uiItems.slider2)->maxx = 10.0;
     UIGetSliderData(uiItems.slider2)->minn = 0.0;
-    UIGetSliderData(uiItems.slider2)->curPercent = 0.1;
+    UIGetSliderData(uiItems.slider2)->curPercent = 1.0;
 
     lab = uwin->AddItem(UIItemType_Label, -1, 1);
     UISetLabel(lab, "Light Pos: ");
@@ -56,7 +58,15 @@ void SetWin(UIWindow* win) {
     UIGetSliderData(uiItems.slider3)->minn = -10.0;
     UIGetSliderData(uiItems.slider3)->curPercent = 1.0;
 
-    uiItems.lab0 = uwin->AddItem(UIItemType_Label, -1, 1);
+    lab = uwin->AddItem(UIItemType_Label, -1, 1);
+    UISetLabel(lab, "Camera Pos: ");
+    uiItems.slider4 = uwin->AddItem(UIItemType_Slider,-1,1);
+    UIGetSliderData(uiItems.slider4)->maxx =  3.0;
+    UIGetSliderData(uiItems.slider4)->minn = -3.0;
+    UIGetSliderData(uiItems.slider4)->curPercent = 0.5;
+
+    uiItems.lab0   = uwin->AddItem(UIItemType_Label, -1, 1);
+    uiItems.labfps = uwin->AddItem(UIItemType_Label, -1, 1);
 }
 
 static void Init() {
@@ -83,9 +93,12 @@ static void Init() {
     currentUIColorScheme = colorScheme;
 	Renderer::currentRenderer->SetStretch({1.0, 1.0});
 
-       cubetex._size = v3i(128,128,128);
+    int si = 256;
+    cubetex._size = v3i(si,si,si);
     cubetex._GPUGen(0, TexChannelInfo::NW_RGBA);
     cubetex.SetEdgesBehaviour(TexEdge::NW_REPEAT);
+    cubetex.SetMinFilter(TexMinFilter::NW_MIN_LINEAR);
+    cubetex.SetMaxFilter(TexMaxFilter::NW_LINEAR);
 	ComputeShaderIdentifier id = "C:/Programming/NWengineProjs/Cloud-sim/cloud-sim/assets/Noise.comp.shader";
 	Loader<ComputeShader>	shaderl;
 	compute = shaderl.LoadFromFileOrGetFromCache((void*)&id, id.c_str(), 0);
@@ -93,7 +106,7 @@ static void Init() {
     compute->Use();
     cubetex.Bind(16);
     cubetex.BindImageTex(0);
-    compute->Dispatch({128,128,128});
+    compute->Dispatch({si,si,si});
     Context::NWMemoryBarrier(NWMemoryBarrierBit::SHADER_IMAGE_ACCESS_BARRIER_BIT);
 }
 
@@ -109,6 +122,8 @@ static void UpdateUniforms() {
     UpdateIfExists(sh,"uPerc",sh->SetUniform1f("uPerc", UIGetSliderValue(uiItems.slider)));
     UpdateIfExists(sh,"uPow",sh->SetUniform1f("uPow", UIGetSliderValue(uiItems.slider2)));
     UpdateIfExists(sh,"uLpos",sh->SetUniform1f("uLpos", UIGetSliderValue(uiItems.slider3)));
+    UpdateIfExists(sh,"uCpos",sh->SetUniform1f("uCpos", UIGetSliderValue(uiItems.slider4)));
+
     UpdateIfExists(sh,"uTex1",sh->SetUniform1i("uTex1",16));
     cubetex.Bind(16);
 }
@@ -152,6 +167,7 @@ static void Update() {
     }
     UpdateUniforms();
     UISetLabel(uiItems.lab0, std::to_string(UIGetSliderValue(uiItems.slider3)).c_str());
+    UISetLabel(uiItems.labfps, ("FPS: " + std::to_string((int)NWTime::GetFPS())).c_str());
     elapsed += NWTime::GetDeltaTime();
 }
 
