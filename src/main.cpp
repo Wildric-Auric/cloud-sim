@@ -17,6 +17,9 @@ Camera* camC;
 Texture3D      cubetex;
 ComputeShader* compute;
 
+static float elapsed = 0.0;
+static ShaderIdentifier usedShader = ShaderTexturedDefaultID;
+
 void SetWin(UIWindow* win) {
 	Camera*	   cam	= Camera::ActiveCamera;
 	Transform* tr	= win->attachedObject->Get<Transform>();
@@ -86,6 +89,12 @@ static void Init() {
     SetWin(&w);
     Sprite& spr = rndQuad.Add<Sprite,Transform>();
     spr.SetSize({900,500});
+    ShaderIdentifier ids = "./assets/CloudMarch.shader";
+    spr.SetShader(ids);
+    if (!spr.shader || spr.shader->_glID == 0)
+        spr.SetShader(NW_DEFAULT_SHADER); 
+    else 
+        usedShader = ids;
 
 	s.Start();
     UIColorScheme colorScheme = uiColorSchemePreset_Test;
@@ -93,25 +102,23 @@ static void Init() {
     currentUIColorScheme = colorScheme;
 	Renderer::currentRenderer->SetStretch({1.0, 1.0});
 
-    int si = 256;
-    cubetex._size = v3i(si,si,si);
+    int si  = 256;
+    int si2 = 64;
+    cubetex._size = v3i(si,si,si2);
     cubetex._GPUGen(0, TexChannelInfo::NW_RGBA);
     cubetex.SetEdgesBehaviour(TexEdge::NW_REPEAT);
     cubetex.SetMinFilter(TexMinFilter::NW_MIN_LINEAR);
     cubetex.SetMaxFilter(TexMaxFilter::NW_LINEAR);
-	ComputeShaderIdentifier id = "C:/Programming/NWengineProjs/Cloud-sim/cloud-sim/assets/Noise.comp.shader";
+	ComputeShaderIdentifier id = "./assets/Noise.comp.shader";
 	Loader<ComputeShader>	shaderl;
 	compute = shaderl.LoadFromFileOrGetFromCache((void*)&id, id.c_str(), 0);
 
     compute->Use();
     cubetex.Bind(16);
     cubetex.BindImageTex(0);
-    compute->Dispatch({si,si,si});
+    compute->Dispatch({si,si,si2});
     Context::NWMemoryBarrier(NWMemoryBarrierBit::SHADER_IMAGE_ACCESS_BARRIER_BIT);
 }
-
-static float elapsed = 0.0;
-static ShaderIdentifier usedShader = ShaderTexturedDefaultID;
 
 #define UpdateIfExists(sh,name,code) if (sh->GetUniformLoc(name) != -1) {code;}
 static void UpdateUniforms() {
@@ -166,7 +173,7 @@ static void Update() {
             d->value = 0;
     }
     UpdateUniforms();
-    UISetLabel(uiItems.lab0, std::to_string(UIGetSliderValue(uiItems.slider3)).c_str());
+    UISetLabel(uiItems.lab0, std::to_string(UIGetSliderValue(uiItems.slider4)).c_str());
     UISetLabel(uiItems.labfps, ("FPS: " + std::to_string((int)NWTime::GetFPS())).c_str());
     elapsed += NWTime::GetDeltaTime();
 }

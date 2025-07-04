@@ -62,6 +62,24 @@ float simplex3d_fractal(vec3 m) {
 			+0.1333333*simplex3d(4.0*m*rot3)
 			+0.0666667*simplex3d(8.0*m);
 }
+float worley(vec3 p, float scale){
+    vec3 id = floor(p*scale);
+    vec3 fd = fract(p*scale);
+    float n = 0.;
+    float minimalDist = 1.;
+    for(float x = -1.; x <=1.; x++){
+    for(float y = -1.; y <=1.; y++){
+    for(float z = -1.; z <=1.; z++){
+        vec3 coord = vec3(x,y,z);
+        vec3 rId   = random3(mod(id+coord,scale))*0.5+0.5;
+        vec3 r     = coord + rId - fd; 
+        float d    = dot(r,r);
+        if(d < minimalDist){
+            minimalDist = d;
+        }
+    }}}
+    return 1.0-minimalDist;
+}
 
 //---------------------------------------------
 
@@ -71,6 +89,7 @@ void main() {
 	ivec3 tc = ivec3(gl_GlobalInvocationID.xyz);
     vec3 uv  = vec3(tc) / 255.0;
     float v  = simplex3d_fractal (uv * 5.0);
-    value.xyz =vec3(v) ;
+    float v1 = worley(uv,10.0); 
+    value.xyz =vec3(v1*v) ;
 	imageStore(imgOutput, tc, value);
 }
