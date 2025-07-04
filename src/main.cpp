@@ -19,6 +19,7 @@ ComputeShader* compute;
 
 static float elapsed = 0.0;
 static ShaderIdentifier usedShader = ShaderTexturedDefaultID;
+v3i    si  = {256,256,64};
 
 void SetWin(UIWindow* win) {
 	Camera*	   cam	= Camera::ActiveCamera;
@@ -72,6 +73,17 @@ void SetWin(UIWindow* win) {
     uiItems.labfps = uwin->AddItem(UIItemType_Label, -1, 1);
 }
 
+void LoadComputeAndDispatch() {
+	ComputeShaderIdentifier id = "./assets/Noise.comp.shader";
+	Loader<ComputeShader>	shaderl;
+	compute = shaderl.LoadFromFileOrGetFromCache((void*)&id, id.c_str(), 0);
+    compute->Use();
+    cubetex.Bind(16);
+    cubetex.BindImageTex(0);
+    compute->Dispatch(si);
+    Context::NWMemoryBarrier(NWMemoryBarrierBit::SHADER_IMAGE_ACCESS_BARRIER_BIT);
+}
+
 static void Init() {
 	Context::SetTitle("Sandbox");
 	Context::EnableVSync();
@@ -102,22 +114,12 @@ static void Init() {
     currentUIColorScheme = colorScheme;
 	Renderer::currentRenderer->SetStretch({1.0, 1.0});
 
-    int si  = 256;
-    int si2 = 64;
-    cubetex._size = v3i(si,si,si2);
+    cubetex._size = si;
     cubetex._GPUGen(0, TexChannelInfo::NW_RGBA);
     cubetex.SetEdgesBehaviour(TexEdge::NW_REPEAT);
     cubetex.SetMinFilter(TexMinFilter::NW_MIN_LINEAR);
     cubetex.SetMaxFilter(TexMaxFilter::NW_LINEAR);
-	ComputeShaderIdentifier id = "./assets/Noise.comp.shader";
-	Loader<ComputeShader>	shaderl;
-	compute = shaderl.LoadFromFileOrGetFromCache((void*)&id, id.c_str(), 0);
-
-    compute->Use();
-    cubetex.Bind(16);
-    cubetex.BindImageTex(0);
-    compute->Dispatch({si,si,si2});
-    Context::NWMemoryBarrier(NWMemoryBarrierBit::SHADER_IMAGE_ACCESS_BARRIER_BIT);
+    LoadComputeAndDispatch();
 }
 
 #define UpdateIfExists(sh,name,code) if (sh->GetUniformLoc(name) != -1) {code;}
@@ -152,6 +154,9 @@ static void Update() {
         }
         d->value = 0;
         elapsed = 0.0;
+
+        compute->Clean();
+        LoadComputeAndDispatch();
     }
     d = UIGetCheckboxData(uiItems.load);
     if (d->value) {
@@ -171,6 +176,9 @@ static void Update() {
             usedShader = str;
         }
             d->value = 0;
+
+        compute->Clean();
+        LoadComputeAndDispatch();
     }
     UpdateUniforms();
     UISetLabel(uiItems.lab0, std::to_string(UIGetSliderValue(uiItems.slider4)).c_str());

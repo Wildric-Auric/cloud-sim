@@ -113,7 +113,7 @@ void main() {
             vec3 p = ray.origin + t * ray.dir;
             vec3 c = (p - box.xyz)/box.w; c.z = -c.z;
             c      = (c+1.0)/2.0;
-            acc += 2.0*no3(c+vec3(0.0,0.1*uTime,0.0))*st;
+            acc += no3((c+vec3(0.0,0.1*uTime,0.0)))*st;
             t   += st;
             if (t > ma) {break;}
         }
