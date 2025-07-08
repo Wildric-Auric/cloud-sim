@@ -84,6 +84,9 @@ bool rayBoxInt(inout float tmin, inout float tmax, Ray r) {
     return !(tmax < 0 || tmin > tmax);
 }
 
+const float maxIter  = 128.0;
+const float maxIter2 = 32.0; 
+
 void main() {
     vec2 uv = (coord*uRes)/uRes.xx - vec2(0.5, 0.5*uRes.y/uRes.x);
     eps = 1.0 / uRes.x * 0.01;
@@ -97,40 +100,49 @@ void main() {
     ray.dir    = normalize(vec3(uv.x, uv.y, -1.0));
     float mi; float ma;
     bool res = rayBoxInt(mi,ma, ray);
-    if (res) {
-        vec3 ss = vec3(0.1, 0.1,0.1);//sample size
-        float maxIter = 128.0;
-        float st = sqrt(3.0)*2.0*box.w/maxIter;
-        float t   = max(0.0,mi); 
-        float acc = 0.0;
-        for (float i = 0.0; i < maxIter;++i) {
-            vec3 p = ray.origin + t * ray.dir;
-            vec3 c = (p - box.xyz)/box.w; c.z = -c.z;
-            c      = (c+1.0)/2.0;
-            
-            //---------------secondary ray accumulation---------------
-            Ray secRay; secRay.origin = p; secRay.dir = normalize(lp - p);
-            float mi0 = 0.0; float ma0 = 0.0; float acc0 = 0.;
-            rayBoxInt(mi0,ma0,secRay);
-            float t0  = max(0.0, mi0);
-            for (float j = 0.0; j < maxIter; ++j) {
-                vec3 p0 = secRay.origin + t0 * secRay.dir;   
-                vec3 c0 = (p0 - box.xyz)/box.w; c0.z = -c0.z;
-                c0      = (c0+1.0)/2.0;
-                acc0  += no3((c0+vec3(0.0,0.1*uTime,0.0)))*st*uPerc;
-                t0 += st;
-                if (t0 > ma0) {break;}
-            }
-            //--------------------------------------------------------
 
-            float factor = no3((c+vec3(0.0,0.1*uTime,0.0)))*st*uPerc;
-            acc += factor*exp(-acc0*uPow);
-            t   += st;
-            if (t > ma) {break;}
-        }
-        vec3 cl = vec3(exp(-acc*0.1));
-        hit.c  = mix(hit.c, cl, acc);
+    if (!res) {
+        col = hit.c;
+        //col = vec3(no3(vec3(uv, 0.1*uTime)));
+	    FragColor = vec4(col, 1.);
+        return;
     }
+
+    vec3 ss = vec3(0.1, 0.1,0.1);//sample size
+    float st = sqrt(3.0)*2.0*box.w/maxIter;
+    float t   = max(0.0,mi); 
+    float acc = 0.0;
+
+    for (float i = 0.0; i < maxIter;++i) {
+        vec3 p = ray.origin + t * ray.dir;
+        vec3 c = (p - box.xyz)/box.w; c.z = -c.z;
+        c      = (c+1.0)/2.0;
+        
+        //---------------secondary ray accumulation---------------
+        Ray secRay; secRay.origin = p; secRay.dir = normalize(lp - p);
+        float mi0 = 0.0; float ma0 = 0.0; float acc0 = 0.;
+        rayBoxInt(mi0,ma0,secRay);
+        float t0  = max(0.0, mi0);
+        ma0       = min(ma0, distance(lp,p));
+        for (float j = 0.0; j < maxIter2; ++j) {
+            vec3 p0 = secRay.origin + t0 * secRay.dir;   
+            vec3 c0 = (p0 - box.xyz)/box.w; c0.z = -c0.z;
+            c0      = (c0+1.0)/2.0;
+            acc0  += no3((c0+vec3(0.0,0.1*uTime,0.0)))*st*uPerc;
+            t0 += st;
+            if (t0 > ma0) {break;}
+        }
+        //--------------------------------------------------------
+
+        float factor = no3((c+vec3(0.0,0.1*uTime,0.0)))*st*uPerc;
+        acc += factor*exp(-acc0*uPow);
+        t   += st;
+        if (t > ma) {break;}
+    }
+
+    vec3 cl = vec3(exp(-acc*0.1));
+    hit.c  = mix(hit.c, cl, acc);
+
     col = hit.c;
     //col = vec3(no3(vec3(uv, 0.1*uTime)));
 	FragColor = vec4(col, 1.);
