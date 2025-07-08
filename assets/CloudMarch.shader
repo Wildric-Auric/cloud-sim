@@ -55,7 +55,7 @@ struct Hit {
 float eps;
 
 vec4 box = vec4(0.0,0.0,-2.0,.5);
-vec3 lp = vec3(uLpos,0.0,0.0);
+vec3 lp = vec3(uLpos,2.0,-2.0);
 vec4 sph = vec4(0.0,0.0,uCpos,0.1);
 
 float sdf0(vec3 p, float rad) {
@@ -84,12 +84,6 @@ bool rayBoxInt(inout float tmin, inout float tmax, Ray r) {
     return !(tmax < 0 || tmin > tmax);
 }
 
-
-float sdftor( vec3 p, vec2 t ) {
-  vec2 q = vec2(length(p.xz)-t.x,p.y);
-  return length(q)-t.y;
-}
-
 void main() {
     vec2 uv = (coord*uRes)/uRes.xx - vec2(0.5, 0.5*uRes.y/uRes.x);
     eps = 1.0 / uRes.x * 0.01;
@@ -113,7 +107,24 @@ void main() {
             vec3 p = ray.origin + t * ray.dir;
             vec3 c = (p - box.xyz)/box.w; c.z = -c.z;
             c      = (c+1.0)/2.0;
-            acc += no3((c+vec3(0.0,0.1*uTime,0.0)))*st;
+            
+            //---------------secondary ray accumulation---------------
+            Ray secRay; secRay.origin = p; secRay.dir = normalize(lp - p);
+            float mi0 = 0.0; float ma0 = 0.0; float acc0 = 0.;
+            rayBoxInt(mi0,ma0,secRay);
+            float t0  = max(0.0, mi0);
+            for (float j = 0.0; j < maxIter; ++j) {
+                vec3 p0 = secRay.origin + t0 * secRay.dir;   
+                vec3 c0 = (p0 - box.xyz)/box.w; c0.z = -c0.z;
+                c0      = (c0+1.0)/2.0;
+                acc0  += no3((c0+vec3(0.0,0.1*uTime,0.0)))*st*uPerc;
+                t0 += st;
+                if (t0 > ma0) {break;}
+            }
+            //--------------------------------------------------------
+
+            float factor = no3((c+vec3(0.0,0.1*uTime,0.0)))*st*uPerc;
+            acc += factor*exp(-acc0*uPow);
             t   += st;
             if (t > ma) {break;}
         }
