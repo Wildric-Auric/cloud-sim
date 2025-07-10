@@ -3,15 +3,10 @@
 layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
 layout(rgba8, binding = 0) uniform image3D imgOutput;
 
-vec3 random3(vec3 c) {
-	float j = 4096.0*sin(dot(c,vec3(17.0, 59.4, 15.0)));
-	vec3 r;
-	r.z = fract(512.0*j);
-	j *= .125;
-	r.x = fract(512.0*j);
-	j *= .125;
-	r.y = fract(512.0*j);
-	return r-0.5;
+vec3 random3(vec3 p3) {
+	p3 = fract(p3 * vec3(.1031, .1030, .0973));
+    p3 += dot(p3, p3.yxz+33.33);
+    return fract((p3.xxy + p3.yxx)*p3.zyx);
 }
 
 const float F3 =  0.3333333;
@@ -62,6 +57,7 @@ float simplex3d_fractal(vec3 m) {
 			+0.1333333*simplex3d(4.0*m*rot3)
 			+0.0666667*simplex3d(8.0*m);
 }
+
 float worley(vec3 p, float s){
     vec3 uv = p * s;
     vec3 id = floor(uv);
@@ -73,11 +69,11 @@ float worley(vec3 p, float s){
     for(float y = -1.; y <=1.; y++){
     for(float z = -1.; z <=1.; z++){
         c = id+vec3(x,y,z);
-        r = (c+random3(c));
+        r = (c+random3(mod(c,vec3(s))));
         d = distance(uv,r); 
         m = min(d,m);
     }}}
-    return 1.0 - m;
+    return 1.0-m;
 }
 
 //---------------------------------------------
@@ -87,8 +83,8 @@ void main() {
 	vec4  value		 = vec4(0.0, 0.0, 0.0, 1.0);
 	ivec3 tc = ivec3(gl_GlobalInvocationID.xyz);
     vec3 uv  = vec3(tc) / 255.0;
-    float v  = simplex3d_fractal (uv * 5.0);
+    float v  = simplex3d_fractal(uv * 5.0);
     float v1 = worley(uv,10.0); 
-    value.xyz =vec3(mix(v1,v,0.4)) ;
+    value.xyz =vec3(mix(v1*2.,v,0.0)) ;
 	imageStore(imgOutput, tc, value);
 }

@@ -32,12 +32,21 @@ uniform int       uNoise = 0;
 in vec2			  coord;
 
 out vec4 FragColor;
-
+#define pi 3.1415
 //--------------------------------------
 float no3(vec3 p) {
-    return max(0.0,texture(uTex1, p+vec3(0.0,0.1*uTime,0.0)).x);
+    return max(0.0,texture(uTex1, (p*0.8)+vec3(0.0,0.1*uTime,0.0)).x);
 }
 //-------------------------------
+float hg(float d, float g) {
+    float gp = g*g;
+    return (1.0-gp)/pow(1.0+gp-2.*g*d,1.5)/(4.0*pi);
+}
+
+float beer(float d, float a) {
+    return exp(-d*a)*(1.0 - exp(-d*d*a));
+}
+
 struct Cam {
     vec3 pos;
 };
@@ -55,7 +64,7 @@ struct Hit {
 float eps;
 
 vec4 box = vec4(0.0,0.0,-2.0,.5);
-vec3 lp = vec3(0.0,0.0,-0.0);
+vec3 lp = vec3(0.,0.,0.);
 
 float sdf0(vec3 p, float rad) {
     return length(p) - rad;
@@ -91,7 +100,7 @@ void main() {
     vec2 uv = (coord*uRes)/uRes.xx - vec2(0.5, 0.5*uRes.y/uRes.x);
     
     if (uNoise != 0) {
-        FragColor = vec4(vec3(no3(vec3(uv, 0.0))),1.0);
+        FragColor = vec4(vec3(no3(vec3(coord, 0.0))),1.0);
         return;
     }
 
@@ -101,11 +110,11 @@ void main() {
     Cam cam;
     Hit hit;
     hit.c = vec3(uv.y + 0.2,0.2,-uv.y+0.4);
-    ray.origin = vec3(uCpos,0.0,2.0);
+    ray.origin = vec3(uCpos,0.0,1.0);
     ray.t      = 0.0;
     
     vec3 forward = normalize(box.xyz - ray.origin);
-    vec3 right   = normalize(cross(forward, vec3(0.,-1.,0.)));
+    vec3 right   = normalize(cross(forward, vec3(0.,1.,0.)));
     vec3 upDir   = normalize(cross(right, forward));
     float fov = 1.;
     ray.dir = normalize(forward + uv.x * right * fov + uv.y * upDir * fov);    
@@ -121,7 +130,7 @@ void main() {
 
     vec3 ss = vec3(0.1, 0.1,0.1);//sample size
     float st = sqrt(3.0)*2.0*box.w/maxIter;
-    mi = max(0.0,mi);
+    mi = max(0.0,mi)+0.001;
     st = (ma - mi) / maxIter; 
     float t    = mi; 
     float acc  = 0.0;
@@ -152,7 +161,7 @@ void main() {
 
         float factor = no3(c);
         acc  += factor; 
-        cacc += exp(-acc0*uPow*st0*2.0);
+        cacc += beer(acc0*st0*2.0,uPow)*hg(dot(secRay.dir, -ray.dir),0.7);
         t    += st;
         if (t > ma) {break;}
     }
