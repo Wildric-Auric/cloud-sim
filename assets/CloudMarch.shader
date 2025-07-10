@@ -22,22 +22,22 @@ void main() {
 uniform sampler2D uTex0;
 uniform sampler3D uTex1;
 
-//--------------------------------------
-float no3(vec3 p) {
-    return max(0.0,texture(uTex1, p).x);
-}
-//-------------------------------
-
 uniform float	  uTime;
 uniform vec2	  uRes;
 uniform float     uPow  = 1.0;
 uniform float     uPerc = 1.0;
 uniform float     uLpos = 3.0;
 uniform float     uCpos = 3.0;
+uniform int       uNoise = 0;
 in vec2			  coord;
 
 out vec4 FragColor;
 
+//--------------------------------------
+float no3(vec3 p) {
+    return max(0.0,texture(uTex1, p+vec3(0.0,0.1*uTime,0.0)).x);
+}
+//-------------------------------
 struct Cam {
     vec3 pos;
 };
@@ -89,6 +89,12 @@ const float maxIter2 = 32.0;
 void main() {
     lp.z = uLpos; 
     vec2 uv = (coord*uRes)/uRes.xx - vec2(0.5, 0.5*uRes.y/uRes.x);
+    
+    if (uNoise != 0) {
+        FragColor = vec4(vec3(no3(vec3(uv, 0.0))),1.0);
+        return;
+    }
+
     eps = 1.0 / uRes.x * 0.01;
     vec3 col;
     Ray ray;
@@ -109,18 +115,19 @@ void main() {
 
     if (!res) {
         col = hit.c;
-        //col = vec3(no3(vec3(uv, 0.1*uTime)));
 	    FragColor = vec4(col, 1.);
         return;
     }
 
     vec3 ss = vec3(0.1, 0.1,0.1);//sample size
     float st = sqrt(3.0)*2.0*box.w/maxIter;
-    float t   = max(0.0,mi); 
-    float acc = 0.0;
+    mi = max(0.0,mi);
+    st = (ma - mi) / maxIter; 
+    float t    = mi; 
+    float acc  = 0.0;
     float cacc = 0.0;
-
-    for (float i = 0.0; i < maxIter;++i) {
+    float i;
+    for (i = 0.0; i < maxIter;++i) {
         vec3 p = ray.origin + t * ray.dir;
         vec3 c = (p - box.xyz)/box.w; c.z = -c.z;
         c      = (c+1.0)/2.0;
@@ -129,37 +136,33 @@ void main() {
         Ray secRay; secRay.origin = p; secRay.dir = normalize(lp - p);
         float mi0 = 0.0; float ma0 = 0.0; float acc0 = 0.;
         rayBoxInt(mi0,ma0,secRay);
-        float st0 = st;
         float t0  = 0.0;
         ma0       = min(ma0, distance(lp,p));
-        for (float j = 0.0; j < 32.; ++j) {
+        float st0 = ma0/maxIter2;
+        for (float j = 0.0; j < maxIter2; ++j) {
             vec3 p0 = secRay.origin + t0 * secRay.dir;   
             vec3 c0 = (p0 - box.xyz)/box.w; c0.z = -c0.z;
             c0      = (c0+1.0)/2.0;
-            float factor = no3((c0+vec3(0.0,0.1*uTime,0.0)))*st0*uPerc*2.0;
+            float factor = no3(c0);
             acc0   += factor;
-            t0 += st;
-            if (t0 > ma0) {break;}
+            t0 += st0;
+            //if (t0 > ma0) {break;}
         }
         //--------------------------------------------------------
 
-        float factor = no3((c+vec3(0.0,0.1*uTime,0.0)))*st*uPerc;
-        acc += factor; 
-        //cacc += acc0*0.01; //exp(-acc0*70.0);
-        //cacc += (factor*0.01*exp(-acc0*2.0));
-        cacc += (0.1*exp(-acc0*10.0));
-        //cacc += (factor);
+        float factor = no3(c);
+        acc  += factor; 
+        cacc += exp(-acc0*uPow*st0*2.0);
         t    += st;
         if (t > ma) {break;}
     }
 
-    vec3 cl = vec3(cacc*0.1* exp(-acc*10.0)); //vec3(exp(-cacc*0.1));
-    //hit.c   = mix(hit.c, cl, acc*10.0);
-    hit.c   = mix(hit.c, vec3(cacc - exp(-acc*100.)), acc); //best for now?
-    //hit.c   = mix(hit.c,vec3(exp(-acc*10.0)*cacc),acc*10.0);
-    //hit.c  = mix(hit.c,vec3(exp(acc*10.0)), acc*10.0);
-
+    //hit.c   = mix(hit.c, vec3(cacc - exp(-acc*100.)), acc); //best for now?
+    float cl    = exp(-acc*st*uPerc);
+    vec3  clcol = vec3(1.0 - cl)*cacc;
+    float m = clamp(1.0-cl,0.,1.);
+    hit.c = mix(hit.c,clcol,m);
+    //hit.c = vec3(cacc);
     col = hit.c;
-    //col = vec3(no3(vec3(uv, 0.1*uTime)));
 	FragColor = vec4(col, 1.);
 }

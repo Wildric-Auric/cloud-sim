@@ -42,9 +42,9 @@ void SetWin(UIWindow* win) {
     UISetLabel(lab, "Reload: ");
     uiItems.reload = uwin->AddItem(UIItemType_Checkbox, -1,1);
     lab = uwin->AddItem(UIItemType_Label, -1, 1);
-    UISetLabel(lab, "Density: ");
+    UISetLabel(lab, "Absobrption: ");
     uiItems.slider = uwin->AddItem(UIItemType_Slider,-1,1);
-    UIGetSliderData(uiItems.slider)->maxx = 1.0;
+    UIGetSliderData(uiItems.slider)->maxx = 10.0;
     UIGetSliderData(uiItems.slider)->minn = 0.0;
     UIGetSliderData(uiItems.slider)->curPercent = 0.5;
 
@@ -132,6 +132,7 @@ static void UpdateUniforms() {
     UpdateIfExists(sh,"uPow",sh->SetUniform1f("uPow", UIGetSliderValue(uiItems.slider2)));
     UpdateIfExists(sh,"uLpos",sh->SetUniform1f("uLpos", UIGetSliderValue(uiItems.slider3)));
     UpdateIfExists(sh,"uCpos",sh->SetUniform1f("uCpos", UIGetSliderValue(uiItems.slider4)));
+    UpdateIfExists(sh,"uNoise",sh->SetUniform1i("uNoise", Inputs::GetInputKeyPressed('N')));
 
     UpdateIfExists(sh,"uTex1",sh->SetUniform1i("uTex1",16));
     cubetex.Bind(16);
