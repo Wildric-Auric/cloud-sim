@@ -55,8 +55,7 @@ struct Hit {
 float eps;
 
 vec4 box = vec4(0.0,0.0,-2.0,.5);
-vec3 lp = vec3(uLpos,2.0,-2.0);
-vec4 sph = vec4(0.0,0.0,uCpos,0.1);
+vec3 lp = vec3(0.0,0.0,-0.0);
 
 float sdf0(vec3 p, float rad) {
     return length(p) - rad;
@@ -88,6 +87,7 @@ const float maxIter  = 128.0;
 const float maxIter2 = 32.0; 
 
 void main() {
+    lp.z = uLpos; 
     vec2 uv = (coord*uRes)/uRes.xx - vec2(0.5, 0.5*uRes.y/uRes.x);
     eps = 1.0 / uRes.x * 0.01;
     vec3 col;
@@ -95,9 +95,15 @@ void main() {
     Cam cam;
     Hit hit;
     hit.c = vec3(uv.y + 0.2,0.2,-uv.y+0.4);
-    ray.origin = vec3(0.0,0.0,uCpos);
+    ray.origin = vec3(uCpos,0.0,2.0);
     ray.t      = 0.0;
-    ray.dir    = normalize(vec3(uv.x, uv.y, -1.0));
+    
+    vec3 forward = normalize(box.xyz - ray.origin);
+    vec3 right   = normalize(cross(forward, vec3(0.,-1.,0.)));
+    vec3 upDir   = normalize(cross(right, forward));
+    float fov = 1.;
+    ray.dir = normalize(forward + uv.x * right * fov + uv.y * upDir * fov);    
+
     float mi; float ma;
     bool res = rayBoxInt(mi,ma, ray);
 
@@ -112,6 +118,7 @@ void main() {
     float st = sqrt(3.0)*2.0*box.w/maxIter;
     float t   = max(0.0,mi); 
     float acc = 0.0;
+    float cacc = 0.0;
 
     for (float i = 0.0; i < maxIter;++i) {
         vec3 p = ray.origin + t * ray.dir;
@@ -122,26 +129,35 @@ void main() {
         Ray secRay; secRay.origin = p; secRay.dir = normalize(lp - p);
         float mi0 = 0.0; float ma0 = 0.0; float acc0 = 0.;
         rayBoxInt(mi0,ma0,secRay);
-        float t0  = max(0.0, mi0);
+        float st0 = st;
+        float t0  = 0.0;
         ma0       = min(ma0, distance(lp,p));
-        for (float j = 0.0; j < maxIter2; ++j) {
+        for (float j = 0.0; j < 32.; ++j) {
             vec3 p0 = secRay.origin + t0 * secRay.dir;   
             vec3 c0 = (p0 - box.xyz)/box.w; c0.z = -c0.z;
             c0      = (c0+1.0)/2.0;
-            acc0  += no3((c0+vec3(0.0,0.1*uTime,0.0)))*st*uPerc;
+            float factor = no3((c0+vec3(0.0,0.1*uTime,0.0)))*st0*uPerc*2.0;
+            acc0   += factor;
             t0 += st;
             if (t0 > ma0) {break;}
         }
         //--------------------------------------------------------
 
         float factor = no3((c+vec3(0.0,0.1*uTime,0.0)))*st*uPerc;
-        acc += factor*exp(-acc0*uPow);
-        t   += st;
+        acc += factor; 
+        //cacc += acc0*0.01; //exp(-acc0*70.0);
+        //cacc += (factor*0.01*exp(-acc0*2.0));
+        cacc += (0.1*exp(-acc0*10.0));
+        //cacc += (factor);
+        t    += st;
         if (t > ma) {break;}
     }
 
-    vec3 cl = vec3(exp(-acc*0.1));
-    hit.c  = mix(hit.c, cl, acc);
+    vec3 cl = vec3(cacc*0.1* exp(-acc*10.0)); //vec3(exp(-cacc*0.1));
+    //hit.c   = mix(hit.c, cl, acc*10.0);
+    hit.c   = mix(hit.c, vec3(cacc - exp(-acc*100.)), acc); //best for now?
+    //hit.c   = mix(hit.c,vec3(exp(-acc*10.0)*cacc),acc*10.0);
+    //hit.c  = mix(hit.c,vec3(exp(acc*10.0)), acc*10.0);
 
     col = hit.c;
     //col = vec3(no3(vec3(uv, 0.1*uTime)));

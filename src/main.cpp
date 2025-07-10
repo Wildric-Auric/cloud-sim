@@ -44,7 +44,7 @@ void SetWin(UIWindow* win) {
     lab = uwin->AddItem(UIItemType_Label, -1, 1);
     UISetLabel(lab, "Density: ");
     uiItems.slider = uwin->AddItem(UIItemType_Slider,-1,1);
-    UIGetSliderData(uiItems.slider)->maxx = 3.0;
+    UIGetSliderData(uiItems.slider)->maxx = 1.0;
     UIGetSliderData(uiItems.slider)->minn = 0.0;
     UIGetSliderData(uiItems.slider)->curPercent = 0.5;
 
@@ -58,9 +58,9 @@ void SetWin(UIWindow* win) {
     lab = uwin->AddItem(UIItemType_Label, -1, 1);
     UISetLabel(lab, "Light Pos: ");
     uiItems.slider3 = uwin->AddItem(UIItemType_Slider,-1,1);
-    UIGetSliderData(uiItems.slider3)->maxx =  10.0;
-    UIGetSliderData(uiItems.slider3)->minn = -10.0;
-    UIGetSliderData(uiItems.slider3)->curPercent = 1.0;
+    UIGetSliderData(uiItems.slider3)->maxx =  3.0;
+    UIGetSliderData(uiItems.slider3)->minn = -3.0;
+    UIGetSliderData(uiItems.slider3)->curPercent = 0.0;
 
     lab = uwin->AddItem(UIItemType_Label, -1, 1);
     UISetLabel(lab, "Camera Pos: ");
