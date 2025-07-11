@@ -34,8 +34,24 @@ in vec2			  coord;
 out vec4 FragColor;
 #define pi 3.1415
 //--------------------------------------
+float sdTorus( vec3 p, vec2 t ) {
+  p = p - vec3(0.5);
+  vec2 q = vec2(length(p.xz)-t.x,p.y);
+  return length(q)-t.y;
+}
+float sdSphere(vec3 p, float r) {
+    p = p - vec3(0.5);
+    return length(p) - r;
+}
+
 float no3(vec3 p) {
-    return max(0.0,texture(uTex1, p).x);
+    float s = texture(uTex1, p*1.5+vec3(0.0,-uTime*0.1,0.0)).x; s = pow(s,0.6);
+    float d = sdTorus(p,vec2(0.3,0.1))*6.0; 
+    d = min(sdSphere(p-vec3(0.1,0.0,0.0),0.25), sdSphere(p+vec3(0.3,0.0,0.0),0.1));
+    d = min(d,sdSphere(p+vec3(0.0,0.2,0.0),0.1));
+    float f = smoothstep(0.8,1.0,1.0 - d);
+    float r = max(0.0,s*f);
+    return r;
 }
 //-------------------------------
 float hg(float d, float g) {
@@ -93,14 +109,14 @@ bool rayBoxInt(inout float tmin, inout float tmax, Ray r) {
 }
 
 const float maxIter  = 128.0;
-const float maxIter2 = 32.0; 
+const float maxIter2 = 12.0; 
 
 void main() {
     lp.z = uLpos; 
     vec2 uv = (coord*uRes)/uRes.xx - vec2(0.5, 0.5*uRes.y/uRes.x);
     
     if (uNoise != 0) {
-        FragColor = vec4(vec3(no3(vec3(coord, mod(uTime,1.0)))),1.0);
+        FragColor = vec4(vec3(no3(vec3(coord, mod(0.0,1.0))+vec3(uTime,uTime,0.))),1.0);
         return;
     }
 

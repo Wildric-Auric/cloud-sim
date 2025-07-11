@@ -92,15 +92,6 @@ void main() {
     vec3 uv  = vec3(tc) / uDispatchSize;
     float v  = simplex3d_fractal(uv * 5.0);
     float v1 = worley(uv,10.0); 
-    value.xyz =vec3(mix(v1*3.5,v,0.0));
-    //value.xyz = vec3(1.);
-    float d = distance(uv,vec3(0.5));
-    d = 0.0;
-    d = clamp(sdTorus(uv,vec2(0.3,0.1))*6.,0.,1.0);
-//    if (d < 0.0) {
-//        d = 1.0;
-//    } else d = 0.0;
-    //value.xyz = vec3(1.0 - d*10.);
-    value.xyz *= smoothstep(0.5,1.0,1.0 - d);
+    value.xyz =vec3(mix(v1,v,0.0));
 	imageStore(imgOutput, tc, value);
 }
