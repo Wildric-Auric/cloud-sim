@@ -3,6 +3,8 @@
 layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
 layout(rgba8, binding = 0) uniform image3D imgOutput;
 
+uniform ivec3 uDispatchSize; 
+
 vec3 random3(vec3 p3) {
 	p3 = fract(p3 * vec3(.1031, .1030, .0973));
     p3 += dot(p3, p3.yxz+33.33);
@@ -77,14 +79,28 @@ float worley(vec3 p, float s){
 }
 
 //---------------------------------------------
+float sdTorus( vec3 p, vec2 t ) {
+  p = p - vec3(0.5);
+  vec2 q = vec2(length(p.xz)-t.x,p.y);
+  return length(q)-t.y;
+}
 
 void main() {
 	//int idx		 = int(gl_GlobalInvocationID.y * 16 + gl_GlobalInvocationID.x);
 	vec4  value		 = vec4(0.0, 0.0, 0.0, 1.0);
 	ivec3 tc = ivec3(gl_GlobalInvocationID.xyz);
-    vec3 uv  = vec3(tc) / 255.0;
+    vec3 uv  = vec3(tc) / uDispatchSize;
     float v  = simplex3d_fractal(uv * 5.0);
     float v1 = worley(uv,10.0); 
-    value.xyz =vec3(mix(v1*2.,v,0.0)) ;
+    value.xyz =vec3(mix(v1*3.5,v,0.0));
+    //value.xyz = vec3(1.);
+    float d = distance(uv,vec3(0.5));
+    d = 0.0;
+    d = clamp(sdTorus(uv,vec2(0.3,0.1))*6.,0.,1.0);
+//    if (d < 0.0) {
+//        d = 1.0;
+//    } else d = 0.0;
+    //value.xyz = vec3(1.0 - d*10.);
+    value.xyz *= smoothstep(0.5,1.0,1.0 - d);
 	imageStore(imgOutput, tc, value);
 }

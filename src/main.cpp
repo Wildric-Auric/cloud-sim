@@ -19,7 +19,7 @@ ComputeShader* compute;
 
 static float elapsed = 0.0;
 static ShaderIdentifier usedShader = ShaderTexturedDefaultID;
-v3i    si  = {256,256,64};
+v3i    si  = {128,128,64};
 
 void SetWin(UIWindow* win) {
 	Camera*	   cam	= Camera::ActiveCamera;
@@ -78,6 +78,7 @@ void LoadComputeAndDispatch() {
 	Loader<ComputeShader>	shaderl;
 	compute = shaderl.LoadFromFileOrGetFromCache((void*)&id, id.c_str(), 0);
     compute->Use();
+    compute->SetUniform3i("uDispatchSize", si);
     cubetex.Bind(16);
     cubetex.BindImageTex(0);
     compute->Dispatch(si);
@@ -136,6 +137,9 @@ static void UpdateUniforms() {
 
     UpdateIfExists(sh,"uTex1",sh->SetUniform1i("uTex1",16));
     cubetex.Bind(16);
+
+    compute->Use();
+    UpdateIfExists(compute,"uDispatchSize",compute->SetUniform3i("uDispatchSize", si));
 }
 #undef UpdateIfExists
 

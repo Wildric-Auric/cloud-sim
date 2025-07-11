@@ -35,16 +35,16 @@ out vec4 FragColor;
 #define pi 3.1415
 //--------------------------------------
 float no3(vec3 p) {
-    return max(0.0,texture(uTex1, (p*0.8)+vec3(0.0,0.1*uTime,0.0)).x);
+    return max(0.0,texture(uTex1, p).x);
 }
 //-------------------------------
 float hg(float d, float g) {
     float gp = g*g;
-    return (1.0-gp)/pow(1.0+gp-2.*g*d,1.5)/(4.0*pi);
+    return (1.0-gp)/(pow(1.0+gp-2.*g*d,1.5)*(4.0*pi));
 }
 
 float beer(float d, float a) {
-    return exp(-d*a)*(1.0 - exp(-d*d*a));
+    return exp(-d*a)*pow(1.0 - exp(-d*d*a), 0.2);
 }
 
 struct Cam {
@@ -100,7 +100,7 @@ void main() {
     vec2 uv = (coord*uRes)/uRes.xx - vec2(0.5, 0.5*uRes.y/uRes.x);
     
     if (uNoise != 0) {
-        FragColor = vec4(vec3(no3(vec3(coord, 0.0))),1.0);
+        FragColor = vec4(vec3(no3(vec3(coord, mod(uTime,1.0)))),1.0);
         return;
     }
 
@@ -109,8 +109,8 @@ void main() {
     Ray ray;
     Cam cam;
     Hit hit;
-    hit.c = vec3(uv.y + 0.2,0.2,-uv.y+0.4);
-    ray.origin = vec3(uCpos,0.0,1.0);
+    hit.c = vec3(-uv.y+.3, 0.2,uv.y + 0.3);
+    ray.origin = vec3(uCpos,1.0,-1.0);
     ray.t      = 0.0;
     
     vec3 forward = normalize(box.xyz - ray.origin);
@@ -159,16 +159,20 @@ void main() {
         }
         //--------------------------------------------------------
 
-        float factor = no3(c);
+        float factor      = no3(c);
+        float attenuation = beer(acc0*st0*2.0,uPow); 
+        float phase       = hg(dot(secRay.dir, -ray.dir),0.6);
         acc  += factor; 
-        cacc += beer(acc0*st0*2.0,uPow)*hg(dot(secRay.dir, -ray.dir),0.7);
+        cacc += attenuation*phase*factor;
         t    += st;
         if (t > ma) {break;}
     }
 
     //hit.c   = mix(hit.c, vec3(cacc - exp(-acc*100.)), acc); //best for now?
     float cl    = exp(-acc*st*uPerc);
-    vec3  clcol = vec3(1.0 - cl)*cacc;
+    vec3  clcol = vec3(1.0 - cl)*cacc*vec3(355.,315.,130.)/255.0;
+    clcol += vec3(0.5);
+    clcol = mix(vec3(0.4),vec3(1.0),clcol);
     float m = clamp(1.0-cl,0.,1.);
     hit.c = mix(hit.c,clcol,m);
     //hit.c = vec3(cacc);
