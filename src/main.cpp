@@ -19,7 +19,7 @@ ComputeShader* compute;
 
 static float elapsed = 0.0;
 static ShaderIdentifier usedShader = ShaderTexturedDefaultID;
-v3i    si  = {128,128,64};
+v3i    si  = {128,128,128};
 
 void SetWin(UIWindow* win) {
 	Camera*	   cam	= Camera::ActiveCamera;
@@ -97,11 +97,11 @@ static void Init() {
 	camC				  = cam.AddComponent<Camera>();
 	camC->Use();
 	camC->SetClearColor(fVec4(0.2, 0.0, 1.0, 1.0));
-	camC->ChangeOrthoWithMSAA(900, 500, MSAAValue::NW_MSx8);
+	camC->ChangeOrthoWithMSAA(1080, 720, MSAAValue::NW_MSx8);
 	camC->GetFbo()->GenDepthStencilBuffer();
     SetWin(&w);
     Sprite& spr = rndQuad.Add<Sprite,Transform>();
-    spr.SetSize({900,500});
+    spr.SetSize(camC->size);
     ShaderIdentifier ids = "./assets/CloudMarch.shader";
     spr.SetShader(ids);
     if (!spr.shader || spr.shader->_glID == 0)
