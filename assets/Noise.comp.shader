@@ -11,54 +11,30 @@ vec3 random3(vec3 p3) {
     return fract((p3.xxy + p3.yxx)*p3.zyx);
 }
 
-const float F3 =  0.3333333;
-const float G3 =  0.1666667;
+float random31(vec3 p3) {
+	p3  = fract(p3 * .1031);
+    p3 += dot(p3, p3.zyx + 31.32);
+    return fract((p3.x + p3.y) * p3.z);
+}
+
+#define s(i,j,k) random31(fl + vec3(fl.x+i<s-1?i:-fl.x,fl.y+j<s-1?j:-fl.y,fl.z+k<s-1?k:-fl.z));
+float valueNoise(vec3 p, float s) {
+    vec3 uv = p * s;
+    vec3 fl = floor(uv);
+    vec3 x  = smoothstep(vec3(0.),vec3(1.),fract(uv));
+    float a = s(0,0,0); float b = s(1,0,0); 
+    float c = s(1,1,0); float d = s(0,1,0); 
+    float e = s(0,0,1); float f = s(1,0,1); 
+    float g = s(1,1,1); float h = s(0,1,1); 
+
+    float t  = mix(mix(a,b,x.x), mix(d,c,x.x),x.y);
+    float t1 = mix(mix(e,f,x.x), mix(h,g,x.x),x.y);
+
+    return mix(t,t1,x.z);
+}
 
 //---------------------------------------------
 
-float simplex3d(vec3 p) {
-	 vec3 s = floor(p + dot(p, vec3(F3)));
-	 vec3 x = p - s + dot(s, vec3(G3));
-	 
-	 vec3 e = step(vec3(0.0), x - x.yzx);
-	 vec3 i1 = e*(1.0 - e.zxy);
-	 vec3 i2 = 1.0 - e.zxy*(1.0 - e);
-	 	
-	 vec3 x1 = x - i1 + G3;
-	 vec3 x2 = x - i2 + 2.0*G3;
-	 vec3 x3 = x - 1.0 + 3.0*G3;
-	 
-	 vec4 w, d;
-	 
-	 w.x = dot(x, x);
-	 w.y = dot(x1, x1);
-	 w.z = dot(x2, x2);
-	 w.w = dot(x3, x3);
-	 
-	 w = max(0.6 - w, 0.0);
-	 
-	 d.x = dot(random3(s), x);
-	 d.y = dot(random3(s + i1), x1);
-	 d.z = dot(random3(s + i2), x2);
-	 d.w = dot(random3(s + 1.0), x3);
-	 
-	 w *= w;
-	 w *= w;
-	 d *= w;
-	 
-	 return dot(d, vec4(52.0));
-}
-
-const mat3 rot1 = mat3(-0.37, 0.36, 0.85,-0.14,-0.93, 0.34,0.92, 0.01,0.4);
-const mat3 rot2 = mat3(-0.55,-0.39, 0.74, 0.33,-0.91,-0.24,0.77, 0.12,0.63);
-const mat3 rot3 = mat3(-0.71, 0.52,-0.47,-0.08,-0.72,-0.68,-0.7,-0.45,0.56);
-
-float simplex3d_fractal(vec3 m) {
-    return   1.0*0.5 + 0.5333333*simplex3d(m*rot1)
-			+0.2666667*simplex3d(2.0*m*rot2)
-			+0.1333333*simplex3d(4.0*m*rot3)
-			+0.0666667*simplex3d(8.0*m);
-}
 
 float worley(vec3 p, float s){
     vec3 uv = p * s;
@@ -69,7 +45,7 @@ float worley(vec3 p, float s){
     vec3  c; vec3  r;
     for(float x = -1.; x <=1.; x++){
     for(float y = -1.; y <=1.; y++){
-    for(float z = -1.; z <=1.; z++){
+   for(float z = -1.; z <=1.; z++){
         c = id+vec3(x,y,z);
         r = (c+random3(mod(c,vec3(s))));
         d = distance(uv,r); 
@@ -77,6 +53,29 @@ float worley(vec3 p, float s){
     }}}
     return 1.0-m;
 }
+
+float fbm(vec3 p, float s) {
+    float x = 0.;
+    vec2 a = vec2(1.0,s);
+    for (float i = 0.; i < 10.0; ++i) {
+        x   += a.x * valueNoise(p,a.y);
+        a.x /=2.0;
+        a.y *=2.0;
+    }
+    return x/2.;
+}
+
+float worleyFbm(vec3 p, float s) {
+    float x = 0.;
+    vec2 a = vec2(1.0,s);
+    for (float i = 0.; i < 5.0; ++i) {
+        x   += a.x * worley(p,a.y);
+        a.x /=2.0;
+        a.y *=2.0;
+    }
+    return pow(x,2.0)*0.4;
+}
+
 
 //---------------------------------------------
 float sdTorus( vec3 p, vec2 t ) {
@@ -90,8 +89,9 @@ void main() {
 	vec4  value		 = vec4(0.0, 0.0, 0.0, 1.0);
 	ivec3 tc = ivec3(gl_GlobalInvocationID.xyz);
     vec3 uv  = vec3(tc) / uDispatchSize;
-    float v  = simplex3d_fractal(uv * 5.0);
-    float v1 = worley(uv,10.0); 
+    float v = fbm(uv,10.0);
+    //float v  = simplex3d_fractal(uv * 5.0);
+    float v1 = worleyFbm(uv,10.0); 
     value.xyz =vec3(mix(v1,v,0.0));
 	imageStore(imgOutput, tc, value);
 }

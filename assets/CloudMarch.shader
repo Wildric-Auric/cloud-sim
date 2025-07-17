@@ -45,10 +45,10 @@ float sdSphere(vec3 p, float r) {
 }
 
 float no3(vec3 p) {
-    float s = texture(uTex1, p*1.5+vec3(0.0,-uTime*0.1,0.0)).x; s = pow(s,0.6);
+    float s = texture(uTex1, p*1.0+vec3(0.0,-uTime*0.1,0.0)).x; s = pow(s,0.6);
     float d = sdTorus(p,vec2(0.3,0.1))*6.0; 
-    d = min(sdSphere(p-vec3(0.1,0.0,0.0),0.25), sdSphere(p+vec3(0.3,0.0,0.0),0.1));
-    d = min(d,sdSphere(p+vec3(0.0,0.2,0.0),0.1));
+//    d = min(sdSphere(p-vec3(0.1,0.0,0.0),0.25), sdSphere(p+vec3(0.3,0.0,0.0),0.1));
+//    d = min(d,sdSphere(p+vec3(0.0,0.2,0.0),0.1));
     float f = smoothstep(0.8,1.0,1.0 - d);
     float r = max(0.0,s*f);
     return r;
@@ -116,7 +116,8 @@ void main() {
     vec2 uv = (coord*uRes)/uRes.xx - vec2(0.5, 0.5*uRes.y/uRes.x);
     
     if (uNoise != 0) {
-        FragColor = vec4(vec3(no3(vec3(coord, mod(0.0,1.0))+vec3(uTime,uTime,0.))),1.0);
+        //FragColor = vec4(vec3(no3(vec3(coord, mod(0.0,1.0))+vec3(uTime,uTime,0.))),1.0);
+        FragColor = vec4(texture(uTex1,vec3(uv,0.0)).xyz, 1.0);
         return;
     }
 
@@ -187,7 +188,7 @@ void main() {
     //hit.c   = mix(hit.c, vec3(cacc - exp(-acc*100.)), acc); //best for now?
     float cl    = exp(-acc*st*uPerc);
     vec3  clcol = vec3(1.0 - cl)*cacc*vec3(355.,315.,130.)/255.0;
-    clcol += vec3(0.5);
+    clcol += vec3(0.4);
     clcol = mix(vec3(0.4),vec3(1.0),clcol);
     float m = clamp(1.0-cl,0.,1.);
     hit.c = mix(hit.c,clcol,m);
