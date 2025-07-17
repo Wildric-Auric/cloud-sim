@@ -43,13 +43,27 @@ float sdSphere(vec3 p, float r) {
     p = p - vec3(0.5);
     return length(p) - r;
 }
+float sdBox( vec3 p, vec3 b ) {
+  vec3 q = abs(p) - b;
+  return length(max(q,0.0)) + min(max(q.x,max(q.y,q.z)),0.0);
+}
+
+
+
+
+float morph(vec3 p) {
+    float d;
+//    d = min(sdSphere(p-vec3(0.1,0.0,0.0),0.25), sdSphere(p+vec3(0.3,0.0,0.0),0.1));
+//    d = min(d,sdSphere(p+vec3(0.0,0.2,0.0),0.1));
+    d = sdTorus(p,vec2(0.3,0.1))*6.0; 
+    float f = smoothstep(0.8,1.0,1.0 - d);
+    return 1.0;
+}
 
 float no3(vec3 p) {
     float s = texture(uTex1, p*1.0+vec3(0.0,-uTime*0.1,0.0)).x; s = pow(s,0.6);
     float d = sdTorus(p,vec2(0.3,0.1))*6.0; 
-//    d = min(sdSphere(p-vec3(0.1,0.0,0.0),0.25), sdSphere(p+vec3(0.3,0.0,0.0),0.1));
-//    d = min(d,sdSphere(p+vec3(0.0,0.2,0.0),0.1));
-    float f = smoothstep(0.8,1.0,1.0 - d);
+    float f = morph(p);
     float r = max(0.0,s*f);
     return r;
 }
@@ -60,6 +74,10 @@ float hg(float d, float g) {
 }
 
 float beer(float d, float a) {
+    return exp(-d*a);
+}
+
+float beerpdr(float d, float a) {
     return exp(-d*a)*pow(1.0 - exp(-d*d*a), 0.2);
 }
 
@@ -127,6 +145,7 @@ void main() {
     Cam cam;
     Hit hit;
     hit.c = vec3(-uv.y+.3, 0.2,uv.y + 0.3);
+    //hit.c = vec3(-uv.y+0.9,-uv.y+0.9, 1.0);
     ray.origin = vec3(uCpos,1.0,-1.0);
     ray.t      = 0.0;
     
@@ -153,6 +172,9 @@ void main() {
     float acc  = 0.0;
     float cacc = 0.0;
     float i;
+    vec4 scatTr = vec4(vec3(0.),1.0);
+    vec3 lcol = vec3(355.,315.,130.)/255.0;
+    vec3 amb  = vec3(0.4);
     for (i = 0.0; i < maxIter;++i) {
         vec3 p = ray.origin + t * ray.dir;
         vec3 c = (p - box.xyz)/box.w; c.z = -c.z;
@@ -172,27 +194,19 @@ void main() {
             float factor = no3(c0);
             acc0   += factor;
             t0 += st0;
-            //if (t0 > ma0) {break;}
         }
         //--------------------------------------------------------
-
-        float factor      = no3(c);
-        float attenuation = beer(acc0*st0*2.0,uPow); 
+        float ext         = no3(c);
+        float trans       = beer(ext,uPerc*0.1); 
         float phase       = hg(dot(secRay.dir, -ray.dir),0.6);
-        acc  += factor; 
-        cacc += attenuation*phase*factor;
+        vec3 lum          = amb + lcol*acc0*phase*beerpdr(acc0*st0*2.0,uPow);
+        scatTr.xyz += (lum * (1.0 - trans))*scatTr.w;
+        scatTr.w   *= trans;
+
         t    += st;
+        if (scatTr.w < 0.001) {scatTr.w = 0.0; break;};
         if (t > ma) {break;}
     }
-
-    //hit.c   = mix(hit.c, vec3(cacc - exp(-acc*100.)), acc); //best for now?
-    float cl    = exp(-acc*st*uPerc);
-    vec3  clcol = vec3(1.0 - cl)*cacc*vec3(355.,315.,130.)/255.0;
-    clcol += vec3(0.4);
-    clcol = mix(vec3(0.4),vec3(1.0),clcol);
-    float m = clamp(1.0-cl,0.,1.);
-    hit.c = mix(hit.c,clcol,m);
-    //hit.c = vec3(cacc);
-    col = hit.c;
-	FragColor = vec4(col, 1.);
+    hit.c = hit.c * scatTr.w + scatTr.xyz;
+	FragColor = vec4(hit.c, 1.);
 }

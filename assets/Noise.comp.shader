@@ -73,16 +73,12 @@ float worleyFbm(vec3 p, float s) {
         a.x /=2.0;
         a.y *=2.0;
     }
-    return pow(x,2.0)*0.4;
+    //return pow(x*1.,100.0);
+    return pow(x,16.);
 }
 
 
 //---------------------------------------------
-float sdTorus( vec3 p, vec2 t ) {
-  p = p - vec3(0.5);
-  vec2 q = vec2(length(p.xz)-t.x,p.y);
-  return length(q)-t.y;
-}
 
 void main() {
 	//int idx		 = int(gl_GlobalInvocationID.y * 16 + gl_GlobalInvocationID.x);
@@ -90,7 +86,6 @@ void main() {
 	ivec3 tc = ivec3(gl_GlobalInvocationID.xyz);
     vec3 uv  = vec3(tc) / uDispatchSize;
     float v = fbm(uv,10.0);
-    //float v  = simplex3d_fractal(uv * 5.0);
     float v1 = worleyFbm(uv,10.0); 
     value.xyz =vec3(mix(v1,v,0.0));
 	imageStore(imgOutput, tc, value);

@@ -19,7 +19,7 @@ ComputeShader* compute;
 
 static float elapsed = 0.0;
 static ShaderIdentifier usedShader = ShaderTexturedDefaultID;
-v3i    si  = {128,128,128};
+v3i    si  = {256,256,128};
 
 void SetWin(UIWindow* win) {
 	Camera*	   cam	= Camera::ActiveCamera;
