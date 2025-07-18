@@ -21,6 +21,7 @@ void main() {
 
 uniform sampler2D uTex0;
 uniform sampler3D uTex1;
+uniform sampler2D uTex2;
 
 uniform float	  uTime;
 uniform vec2	  uRes;
@@ -57,11 +58,17 @@ float morph(vec3 p) {
 //    d = min(d,sdSphere(p+vec3(0.0,0.2,0.0),0.1));
     d = sdTorus(p,vec2(0.3,0.1))*6.0; 
     float f = smoothstep(0.8,1.0,1.0 - d);
-    return 1.0;
+
+    //return 1.0;
+    #define st(off,channel) smoothstep(0.0,off,channel)*(1.0-smoothstep(1.0-off,1.0,channel))
+    return st(0.2,p.x)*st(0.2,p.y)*st(0.2,p.z);//*(1.0-smoothstep(0.9,1.0,p.z));
+
+
+    return texture(uTex2,p.xy).x * smoothstep(0.5,0.8,p.z) * (1.0-smoothstep(0.5,0.8,p.z));
 }
 
 float no3(vec3 p) {
-    float s = texture(uTex1, p*1.0+vec3(0.0,-uTime*0.1,0.0)).x; s = pow(s,0.6);
+    float s = texture(uTex1, p*1.0+vec3(0.0,-uTime*0.1,0.0)).x; s = pow(s,1.0);
     float d = sdTorus(p,vec2(0.3,0.1))*6.0; 
     float f = morph(p);
     float r = max(0.0,s*f);
@@ -98,7 +105,7 @@ struct Hit {
 float eps;
 
 vec4 box = vec4(0.0,0.0,-2.0,.5);
-vec3 lp = vec3(0.,0.,0.);
+vec3 lp = vec3(0.,10.,0.);
 
 float sdf0(vec3 p, float rad) {
     return length(p) - rad;
@@ -126,8 +133,8 @@ bool rayBoxInt(inout float tmin, inout float tmax, Ray r) {
     return !(tmax < 0 || tmin > tmax);
 }
 
-const float maxIter  = 128.0;
-const float maxIter2 = 12.0; 
+const float maxIter  = 64.0;
+const float maxIter2 = 4.0; 
 
 void main() {
     lp.z = uLpos; 
@@ -146,14 +153,15 @@ void main() {
     Hit hit;
     hit.c = vec3(-uv.y+.3, 0.2,uv.y + 0.3);
     //hit.c = vec3(-uv.y+0.9,-uv.y+0.9, 1.0);
-    ray.origin = vec3(uCpos,1.0,-1.0);
+    ray.origin = vec3(0.0,0.0,uCpos);
     ray.t      = 0.0;
     
     vec3 forward = normalize(box.xyz - ray.origin);
     vec3 right   = normalize(cross(forward, vec3(0.,1.,0.)));
     vec3 upDir   = normalize(cross(right, forward));
     float fov = 1.;
-    ray.dir = normalize(forward + uv.x * right * fov + uv.y * upDir * fov);    
+    //ray.dir = normalize(forward + uv.x * right * fov + uv.y * upDir * fov);    
+    ray.dir = normalize(vec3(uv,-1.0));
 
     float mi; float ma;
     bool res = rayBoxInt(mi,ma, ray);
@@ -173,8 +181,8 @@ void main() {
     float cacc = 0.0;
     float i;
     vec4 scatTr = vec4(vec3(0.),1.0);
-    vec3 lcol = vec3(355.,315.,130.)/255.0;
-    vec3 amb  = vec3(0.4);
+    vec3 lcol = vec3(255.,215.,130.)/255.0;
+    vec3 amb  = vec3(0.3);
     for (i = 0.0; i < maxIter;++i) {
         vec3 p = ray.origin + t * ray.dir;
         vec3 c = (p - box.xyz)/box.w; c.z = -c.z;
@@ -197,9 +205,9 @@ void main() {
         }
         //--------------------------------------------------------
         float ext         = no3(c);
-        float trans       = beer(ext,uPerc*0.1); 
+        float trans       = beer(ext*st,uPerc); 
         float phase       = hg(dot(secRay.dir, -ray.dir),0.6);
-        vec3 lum          = amb + lcol*acc0*phase*beerpdr(acc0*st0*2.0,uPow);
+        vec3 lum          = amb + lcol*10.0*acc0*phase*beerpdr(acc0*st0*2.0,uPow);
         scatTr.xyz += (lum * (1.0 - trans))*scatTr.w;
         scatTr.w   *= trans;
 

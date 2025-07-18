@@ -85,7 +85,7 @@ void main() {
 	vec4  value		 = vec4(0.0, 0.0, 0.0, 1.0);
 	ivec3 tc = ivec3(gl_GlobalInvocationID.xyz);
     vec3 uv  = vec3(tc) / uDispatchSize;
-    float v = fbm(uv,10.0);
+    float v  = fbm(uv,10.0);
     float v1 = worleyFbm(uv,10.0); 
     value.xyz =vec3(mix(v1,v,0.0));
 	imageStore(imgOutput, tc, value);

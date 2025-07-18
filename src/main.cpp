@@ -15,6 +15,7 @@ struct UiItems {
 UiItems uiItems;
 Camera* camC;
 Texture3D      cubetex;
+Texture        tex;
 ComputeShader* compute;
 
 static float elapsed = 0.0;
@@ -121,6 +122,17 @@ static void Init() {
     cubetex.SetMinFilter(TexMinFilter::NW_MIN_LINEAR);
     cubetex.SetMaxFilter(TexMaxFilter::NW_LINEAR);
     LoadComputeAndDispatch();
+
+    TextureIdentifier tid = {"./assets/tex.png",1};
+    TextureIdentifier* p = &tid;
+    Image img;
+    img.alpha = 1;
+    img.LoadFromFile(tid.name.c_str(), 0);
+    tex._size.x = img.width;
+    tex._size.y = img.height;
+    tex._hasMipMap = 1;
+    tex._GPUGen(img.pixelBuffer, TexChannelInfo::NW_RGBA);
+    img.Clean();
 }
 
 #define UpdateIfExists(sh,name,code) if (sh->GetUniformLoc(name) != -1) {code;}
@@ -136,7 +148,10 @@ static void UpdateUniforms() {
     UpdateIfExists(sh,"uNoise",sh->SetUniform1i("uNoise", Inputs::GetInputKeyPressed('N')));
 
     UpdateIfExists(sh,"uTex1",sh->SetUniform1i("uTex1",16));
+    UpdateIfExists(sh,"uTex2",sh->SetUniform1i("uTex2",17));
+
     cubetex.Bind(16);
+    tex.Bind(17);
 
     compute->Use();
     UpdateIfExists(compute,"uDispatchSize",compute->SetUniform3i("uDispatchSize", si));
